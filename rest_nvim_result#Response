@@ -1,0 +1,7 @@
+### adding_a_person#3
+POST http://localhost:3001/api/persons
+HTTP/1.1 200 OK
+
+# @_RES
+{"id":762,"name":"Herra Luukas","number":"905-420-6666"}
+# @_END
