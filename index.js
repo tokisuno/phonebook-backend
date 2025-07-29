@@ -29,9 +29,10 @@ let persons = [
 
 app.use(express.json());
 app.use(morgan(':method :url :body'));
+app.use(express.static('dist'));
 
 app.get('/api/persons', (_, res) => {
-  res.json(persons)
+  res.json(persons);
 })
 
 app.get('/info', (_, res) => {
