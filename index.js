@@ -7,33 +7,9 @@ morgan.token('body', req => JSON.stringify(req.body));
 
 let persons = [];
 
-// let persons = [
-//   {
-//     "id": "1",
-//     "name": "Arto Hellas",
-//     "number": "040-123456"
-//   },
-//   {
-//     "id": "2",
-//     "name": "Ada Lovelace",
-//     "number": "39-44-5323523"
-//   },
-//   {
-//     "id": "3",
-//     "name": "Dan Abramov",
-//     "number": "12-43-234345"
-//   },
-//   {
-//     "id": "4",
-//     "name": "Mary Poppendieck",
-//     "number": "39-23-6423122"
-//   }
-// ]
-
-app.use(express.json());
 app.use(express.static('dist'))
+app.use(express.json());
 app.use(morgan(':method :url :body'));
-app.use(express.static('dist'));
 
 app.get('/api/persons', (_, res) => {
   Person.find({}).then((notes) => {
@@ -41,15 +17,17 @@ app.get('/api/persons', (_, res) => {
   })
 })
 
-// Not working yet
-// app.get('/info', (_, res) => {
-//   const date = new Date();
-//
-//   res.send(`
-//     <p>There are ${persons.length} names in the phonebook</p>
-//     <p>${date}</p>
-//     `);
-// })
+app.get('/info', (req, res) => {
+  const date = new Date();
+  Person.collection.estimatedDocumentCount()
+    .then(count => {
+      res.send(`
+        <p>There are ${count} names in the phonebook</p>
+        <p>${date}</p>
+        `);
+    });
+
+})
 
 app.get('/api/persons/:id', (req, res) => {
   Person.findById(req.params.id).then((note) => {
@@ -66,22 +44,49 @@ app.post('/api/persons', (req, res) => {
     })
   }
 
-  // Don't worry about this for now
-  // const isPresent = persons.some(person => person.name === body.name);
-  // if (isPresent) {
-  //   return res.status(400).json({
-  //     error: 'name already exists in phonebook',
-  //   });
-  // }
-
   const person = new Person({
     name: body.name,
     number: body.number,
   })
 
-  person.save().then((savedPerson) => {
-    res.json(savedPerson);
-  })
+  person
+    .save()
+    .then((savedPerson) => {
+      res.json(savedPerson);
+    })
+    .catch(err => next(err))
+})
+
+app.put('/api/persons/:id', (req, res, next) => {
+  const { name, number } = req.body;
+
+  Person.findById(req.params.id)
+    .then(person => {
+      if (!person) {
+        return res.status(404).end();
+      }
+
+      // if (person) {
+      //   console.log('person exists');
+      // }
+
+      person.name = name;
+      person.number = number;
+
+      return person.save()
+        .then((updatedPerson) => {
+          res.json(updatedPerson);
+        })
+        .catch(err => next(err));
+    })
+})
+
+app.delete('/api/persons/:id', (req, res, next) => {
+  Person.findByIdAndDelete(req.params.id)
+    .then(result => {
+      res.status(204).end();
+    })
+    .catch(err => next(err));
 })
 
 const unknownEndpoint = (req, res) => {
@@ -89,11 +94,17 @@ const unknownEndpoint = (req, res) => {
 }
 app.use(unknownEndpoint);
 
-app.delete('/api/persons/:id', (req, res) => {
-  const id = req.params.id;
-  persons = persons.filter((person) => person.id !== id);
-  res.status(204).end();
-})
+const errorHandler = (err, req, res, next) => {
+  console.log(err.message);
+
+  if (err.name === "CastError") {
+    return res.status(404).send({ error: "malformed id" });
+  }
+
+  next(err);
+}
+app.use(errorHandler);
+
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
